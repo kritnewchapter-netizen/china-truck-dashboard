@@ -91,14 +91,23 @@ tbody tr:hover{background:var(--panel)}
       <div class="kpi"><div class="l">ลูกค้าทั้งหมด</div><div class="v" id="kpiCust">0</div><div class="s" id="kpiRepBreak">—</div></div>
       <div class="kpi accent-green"><div class="l">มูลค่า Pipeline (ระบุแล้ว)</div><div class="v" id="kpiVal2">฿0</div><div class="s" id="kpiDealCount">—</div></div>
       <div class="kpi accent-amber"><div class="l">ดีลที่ยัง Active</div><div class="v" id="kpiActive">0</div><div class="s" id="kpiActiveNames">—</div></div>
-      <div class="kpi accent-red"><div class="l">Close Lost</div><div class="v" id="kpiLost">0</div><div class="s" id="kpiLostNames">—</div></div>
+      <div class="kpi"><div class="l">Product Hero · รุ่นยอดนิยม</div><div class="v" id="kpiHero">—</div><div class="s" id="kpiHeroSub">—</div></div>
     </div>
 
     <div class="grid">
       <div>
         <div class="card">
-          <div class="section-title">จำนวนลูกค้าตามทีมขาย <span class="badge">TEAM</span></div>
-          <div class="chartbox sm"><canvas id="repChart"></canvas></div>
+          <div class="section-title">ลูกค้า &amp; มูลค่าดีลตามเซลล์ <span class="badge">SALES</span></div>
+          <div class="two-mini">
+            <div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">จำนวนลูกค้าตามเซลล์</div>
+              <div class="chartbox sm"><canvas id="repChart"></canvas></div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">มูลค่าดีลตามเซลล์ (฿)</div>
+              <div class="chartbox sm"><canvas id="repValChart"></canvas></div>
+            </div>
+          </div>
         </div>
         <div class="card">
           <div class="section-title">สถานะดีล &amp; กลุ่มอุตสาหกรรม</div>
@@ -119,11 +128,6 @@ tbody tr:hover{background:var(--panel)}
           <table><thead><tr><th>บริษัท</th><th>ทีม</th><th class="num">จำนวน</th><th class="num">มูลค่า (฿)</th><th>สถานะ</th></tr></thead>
           <tbody id="dealBody"></tbody></table>
           <div class="note" id="dealNote"></div>
-        </div>
-        <div class="card">
-          <div class="section-title">รายชื่อลูกค้าทั้งหมด</div>
-          <table><thead><tr><th>ทีม</th><th>บริษัท</th><th>ประเภท</th><th>Stage</th><th>สถานะ</th></tr></thead>
-          <tbody id="custBody"></tbody></table>
         </div>
       </div>
       <div>
@@ -200,17 +204,18 @@ function makeChart(id,cfg){ if(charts[id])charts[id].destroy(); charts[id]=new C
 function render(rows){
   // keep rows with a company name
   const data = rows.filter(r=>(r["Company Name"]||"").trim()!=="");
-  const repCount={Ken:0,Kan:0,Top:0};
+  const repCount={Ken:0,Kan:0,Top:0}, repVal={Ken:0,Kan:0,Top:0};
   const status={active:0,hold:0,lost:0,new:0};
-  const seg={}, model={}, comp={}, obs={price:0,service:0,range:0,roi:0};
+  const seg={}, model={}, comp={}, obs={price:0,service:0,range:0,roi:0}, stageCount={};
   let pipeline=0, dealCount=0, activeVal=0;
-  const activeNames=[], lostNames=[], dealRows=[], custRows=[];
+  const activeNames=[], lostNames=[], dealRows=[];
 
   data.forEach(r=>{
     const rep=r._rep; if(repCount[rep]!=null)repCount[rep]++;
     const [sk,pc,slabel]=statusClass(r["Deal Status"]);
     status[sk]++;
     const val=parseVal(r["มูลค่าดีลโดยประมาณ"]);
+    if(repVal[rep]!=null)repVal[rep]+=val;
     if(val>0){pipeline+=val; dealCount++; if(sk==="active")activeVal+=val;
       dealRows.push({co:r["Company Name"].trim(),rep,qty:r["จำนวนคัน"]||"—",val,pc,slabel});}
     if(sk==="active")activeNames.push(shortName(r["Company Name"]));
@@ -223,7 +228,7 @@ function render(rows){
     if(/อะไหล่|บริการ|service|spare/i.test(o))obs.service++;
     if(/ระยะทาง|วิ่งไม่|ระยะวิ่ง/.test(o))obs.range++;
     if(/roi|คุ้มค่า|ความคุ้ม/i.test(o))obs.roi++;
-    custRows.push({rep,co:r["Company Name"].trim(),type:r["Customer Type"]||"—",stage:r["Sales Stage"]||"—",pc,slabel});
+    bump(stageCount,(r["Sales Stage"]||"").trim());
   });
 
   // KPIs
@@ -234,12 +239,12 @@ function render(rows){
   $("kpiDealCount").textContent=`จาก ${dealCount} ดีลที่ประเมินมูลค่า`;
   $("kpiActive").textContent=status.active;
   $("kpiActiveNames").textContent=activeNames.join(" · ")||"—";
-  $("kpiLost").textContent=status.lost;
-  $("kpiLostNames").textContent=lostNames.join(" · ")||"—";
 
   // key list
   const avg=dealCount?pipeline/dealCount:0;
   const topModel=topEntries(model,1)[0], topComp=topEntries(comp,1)[0];
+  $("kpiHero").textContent=topModel?topModel[0]:"—";
+  $("kpiHeroSub").textContent=topModel?`${topModel[1]} ลูกค้าสนใจ`:"—";
   $("keyList").innerHTML=[
     ["มูลค่า Pipeline ที่ระบุ",fmtM(pipeline)],
     ["ดีลที่ประเมินมูลค่าแล้ว",`${dealCount} / ${data.length}`],
@@ -251,6 +256,8 @@ function render(rows){
 
   // charts
   makeChart("repChart",{type:'bar',data:{labels:['Ken','Top','Kan'],datasets:[{data:[repCount.Ken,repCount.Top,repCount.Kan],backgroundColor:[NAVY,BLUE,BLUEL],borderRadius:3,maxBarThickness:60}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'}},x:{grid:{display:false}}}}});
+
+  makeChart("repValChart",{type:'bar',data:{labels:['Ken','Top','Kan'],datasets:[{data:[repVal.Ken,repVal.Top,repVal.Kan],backgroundColor:[NAVY,BLUE,BLUEL],borderRadius:3,maxBarThickness:60}]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtM(c.parsed.y)}}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},ticks:{callback:v=>v>=1e6?(v/1e6)+'M':(v>=1e3?(v/1e3)+'K':v)}},x:{grid:{display:false}}}}});
 
   makeChart("statusChart",{type:'doughnut',data:{labels:['รอ/ใหม่','On Hold','Active','Close Lost'],datasets:[{data:[status.new,status.hold,status.active,status.lost],backgroundColor:[BLUE,AMBER,GREEN,RED],borderWidth:2,borderColor:'#fff'}]},options:{cutout:'62%',plugins:{legend:{display:false}}}});
   $("statusLegend").innerHTML=[['#4a72b0','รอ/ใหม่',status.new],['#d99a2b','On Hold',status.hold],['#2e9e6b','Active',status.active],['#c9483f','Close Lost',status.lost]].map(([c,l,n])=>`<span><i style="background:${c}"></i>${l} ${n}</span>`).join('');
@@ -264,7 +271,11 @@ function render(rows){
   const compTop=topEntries(comp,5);
   makeChart("compChart",{type:'bar',data:{labels:compTop.map(e=>e[0]),datasets:[{data:compTop.map(e=>e[1]),backgroundColor:compTop.map((e,i)=>[NAVY,BLUE,BLUEL,BLUEP,BLUEP][i]||BLUEP),borderRadius:3}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'}},y:{grid:{display:false}}}}});
 
-  makeChart("funnelChart",{type:'bar',data:{labels:['ลูกค้าทั้งหมด','นำเสนอ+','Active','ปิดได้'],datasets:[{data:[data.length,status.active+status.hold,status.active,0],backgroundColor:[BLUEP,BLUE,NAVY,GREEN],borderRadius:3}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'}},y:{grid:{display:false}}}}});
+  const STAGE_ORDER=["ลูกค้าใหม่","เข้าพบและเก็บ Requirement แล้ว","นำเสนอสินค้าแล้ว","ลูกค้าต้องการทดลอง"];
+  const stageShort={"ลูกค้าใหม่":"ลูกค้าใหม่","เข้าพบและเก็บ Requirement แล้ว":"เก็บ Requirement","นำเสนอสินค้าแล้ว":"นำเสนอแล้ว","ลูกค้าต้องการทดลอง":"ต้องการทดลอง"};
+  const stageKeys=[...STAGE_ORDER.filter(s=>stageCount[s]), ...Object.keys(stageCount).filter(s=>s&&!STAGE_ORDER.includes(s))];
+  const stagePal=[BLUEP,BLUEL,BLUE,NAVY,'#16305a','#0f2244'];
+  makeChart("funnelChart",{type:'bar',data:{labels:stageKeys.map(s=>stageShort[s]||s),datasets:[{data:stageKeys.map(s=>stageCount[s]),backgroundColor:stageKeys.map((s,i)=>stagePal[i]||NAVY),borderRadius:3}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'}},y:{grid:{display:false}}}}});
 
   makeChart("obsChart",{type:'pie',data:{labels:['ราคา/งบ','อะไหล่&บริการ','ระยะทาง','ROI'],datasets:[{data:[obs.price,obs.service,obs.range,obs.roi],backgroundColor:[NAVY,BLUE,BLUEL,BLUEP],borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{display:false}}}});
   $("obsLegend").innerHTML=[['#1c3d6e','ราคา/งบ',obs.price],['#4a72b0','อะไหล่&บริการ',obs.service],['#8fb0d9','ระยะทาง',obs.range],['#cddcef','ROI',obs.roi]].map(([c,l,n])=>`<span><i style="background:${c}"></i>${l} ${n}</span>`).join('');
@@ -276,10 +287,6 @@ function render(rows){
     ).join('')+`<tr><td colspan="3" style="font-weight:700;color:var(--navy)">รวม</td><td class="num" style="color:var(--navy);font-size:14px">${pipeline.toLocaleString('en-US')}</td><td></td></tr>`
     : `<tr><td colspan="5" style="color:var(--muted)">ยังไม่มีดีลที่ระบุมูลค่า</td></tr>`;
   $("dealNote").textContent=`* ${data.length-dealCount} รายยังไม่ได้ประเมินมูลค่าดีล — Pipeline จริงมีโอกาสสูงกว่านี้`;
-
-  // customer table
-  $("custBody").innerHTML=custRows.map(c=>
-    `<tr><td><b>${c.rep}</b></td><td>${c.co}</td><td>${c.type}</td><td>${c.stage}</td><td><span class="pill ${c.pc}">${c.slabel}</span></td></tr>`).join('');
 }
 
 function shortName(s){ s=(s||"").trim().replace(/^(บริษัท|บจก\.|หจก\.)\s*/,''); return s.length>14?s.slice(0,14)+"…":s; }
