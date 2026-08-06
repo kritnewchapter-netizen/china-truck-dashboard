@@ -124,6 +124,20 @@ tbody tr:hover{background:var(--panel)}
           <div class="chartbox"><canvas id="modelChart"></canvas></div>
         </div>
         <div class="card">
+          <div class="section-title">Fleet ปัจจุบัน &amp; รุ่นที่ลูกค้าร้องขอ <span class="badge">FLEET</span></div>
+          <div class="two-mini">
+            <div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">รถที่ลูกค้ามีใช้อยู่แล้ว (Fleet ปัจจุบัน)</div>
+              <div class="chartbox sm"><canvas id="fleetChart"></canvas></div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:600">รุ่นที่ลูกค้าร้องขอ (ยังไม่มีในไลน์อัพ)</div>
+              <div class="deflist" id="reqModelList"></div>
+            </div>
+          </div>
+          <div class="note" id="fleetNote"></div>
+        </div>
+        <div class="card">
           <div class="section-title">ดีลที่มีมูลค่าประเมิน</div>
           <table><thead><tr><th>บริษัท</th><th>ทีม</th><th class="num">จำนวน</th><th class="num">มูลค่า (฿)</th><th>สถานะ</th></tr></thead>
           <tbody id="dealBody"></tbody></table>
@@ -207,6 +221,7 @@ function render(rows){
   const repCount={Ken:0,Kan:0,Top:0}, repVal={Ken:0,Kan:0,Top:0};
   const status={active:0,hold:0,lost:0,new:0};
   const seg={}, model={}, comp={}, obs={price:0,service:0,range:0,roi:0}, stageCount={};
+  const fleet={}, reqModel={}, reqModelCos={};
   let pipeline=0, dealCount=0, activeVal=0;
   const activeNames=[], lostNames=[], dealRows=[];
 
@@ -229,6 +244,8 @@ function render(rows){
     if(/ระยะทาง|วิ่งไม่|ระยะวิ่ง/.test(o))obs.range++;
     if(/roi|คุ้มค่า|ความคุ้ม/i.test(o))obs.roi++;
     bump(stageCount,(r["Sales Stage"]||"").trim());
+    bump(fleet,(r["Fleet Details"]||"").trim()||"ไม่ระบุ");
+    splitMulti(r["Requested Model"]).forEach(m=>{bump(reqModel,m);(reqModelCos[m]=reqModelCos[m]||[]).push(shortName(r["Company Name"]));});
   });
 
   // KPIs
@@ -238,7 +255,7 @@ function render(rows){
   $("kpiRepBreak").textContent=`Ken ${repCount.Ken} · Top ${repCount.Top} · Kan ${repCount.Kan}`;
   $("kpiDealCount").textContent=`จาก ${dealCount} ดีลที่ประเมินมูลค่า`;
   $("kpiActive").textContent=status.active;
-  $("kpiActiveNames").textContent=activeNames.join(" · ")||"—";
+  $("kpiActiveNames").textContent="มูลค่ารวม "+fmtM(activeVal);
 
   // key list
   const avg=dealCount?pipeline/dealCount:0;
@@ -276,6 +293,14 @@ function render(rows){
   const stageKeys=[...STAGE_ORDER.filter(s=>stageCount[s]), ...Object.keys(stageCount).filter(s=>s&&!STAGE_ORDER.includes(s))];
   const stagePal=[BLUEP,BLUEL,BLUE,NAVY,'#16305a','#0f2244'];
   makeChart("funnelChart",{type:'bar',data:{labels:stageKeys.map(s=>stageShort[s]||s),datasets:[{data:stageKeys.map(s=>stageCount[s]),backgroundColor:stageKeys.map((s,i)=>stagePal[i]||NAVY),borderRadius:3}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'}},y:{grid:{display:false}}}}});
+
+  const FLEET_ORDER=["1-10 คัน","10-50 คัน","50-100 คัน","มากกว่า 100 คัน","ไม่ระบุ"];
+  const fleetKeys=[...FLEET_ORDER.filter(k=>fleet[k]),...Object.keys(fleet).filter(k=>!FLEET_ORDER.includes(k))];
+  makeChart("fleetChart",{type:'bar',data:{labels:fleetKeys,datasets:[{data:fleetKeys.map(k=>fleet[k]),backgroundColor:fleetKeys.map((k,i)=>k==="ไม่ระบุ"?BLUEP:[NAVY,BLUE,BLUEL,AMBER][i]||BLUEL),borderRadius:3,maxBarThickness:48}]},options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'}},x:{grid:{display:false}}}}});
+
+  const reqTop=topEntries(reqModel,8);
+  $("reqModelList").innerHTML = reqTop.length? reqTop.map(([m,n])=>`<div class="row"><span>${m} <span style="color:var(--blue);font-weight:600">(${(reqModelCos[m]||[]).join(', ')})</span></span><span>${n}</span></div>`).join('') : `<div style="font-size:12px;color:var(--muted);padding:8px 2px">— ยังไม่มีคำร้องขอรุ่นเพิ่มเติมในชีต</div>`;
+  $("fleetNote").textContent="* Fleet ปัจจุบัน = จำนวนรถที่ลูกค้าใช้งานอยู่แล้ว (คอลัมน์ Fleet Details) · รุ่นที่ร้องขอมาจากคอลัมน์ Requested Model";
 
   makeChart("obsChart",{type:'pie',data:{labels:['ราคา/งบ','อะไหล่&บริการ','ระยะทาง','ROI'],datasets:[{data:[obs.price,obs.service,obs.range,obs.roi],backgroundColor:[NAVY,BLUE,BLUEL,BLUEP],borderWidth:2,borderColor:'#fff'}]},options:{plugins:{legend:{display:false}}}});
   $("obsLegend").innerHTML=[['#1c3d6e','ราคา/งบ',obs.price],['#4a72b0','อะไหล่&บริการ',obs.service],['#8fb0d9','ระยะทาง',obs.range],['#cddcef','ROI',obs.roi]].map(([c,l,n])=>`<span><i style="background:${c}"></i>${l} ${n}</span>`).join('');
