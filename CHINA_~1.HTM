@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>China Truck Sales Report — Executive Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#1c3d6e;
+  --navy-2:#24487a;
+  --blue:#4a72b0;
+  --blue-light:#8fb0d9;
+  --blue-pale:#cddcef;
+  --ink:#28303a;
+  --muted:#6b7787;
+  --line:#e2e7ee;
+  --bg:#eef1f5;
+  --card:#ffffff;
+  --panel:#f6f8fb;
+  --green:#2e9e6b;
+  --amber:#d99a2b;
+  --red:#c9483f;
+  --grey:#8b97a6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun','Inter',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+.wrap{max-width:1280px;margin:0 auto;background:#fff}
+
+/* Header */
+.topbar{background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:14px 26px}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:20px;letter-spacing:.3px}
+.brand .logo{width:34px;height:34px;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+.topbar nav{display:flex;gap:22px;font-size:12.5px;font-weight:500;opacity:.9}
+.topbar .actions{display:flex;gap:10px}
+.btn-ghost{border:1px solid rgba(255,255,255,.5);color:#fff;background:transparent;padding:6px 16px;border-radius:3px;font-size:12px;font-weight:600;cursor:pointer}
+.btn-solid{background:#fff;color:var(--navy);border:none;padding:6px 16px;border-radius:3px;font-size:12px;font-weight:700;cursor:pointer}
+
+/* Sub-header ticker */
+.subbar{background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:12px 26px;flex-wrap:wrap}
+.subbar .big{font-size:30px;font-weight:700;color:var(--navy)}
+.subbar .chg{color:var(--green);font-weight:600;font-size:14px}
+.subbar .title{font-size:16px;font-weight:600}
+.subbar .tag{color:var(--navy);font-weight:700}
+.subbar .meta{margin-left:auto;font-size:11px;color:var(--muted)}
+
+/* Search */
+.searchbar{background:var(--panel);padding:12px 26px;border-bottom:1px solid var(--line)}
+.searchbar input{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:3px;font-size:13px;background:#fff}
+
+.pad{padding:22px 26px}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:20px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.topbar nav{display:none}}
+
+.section-title{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:.4px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.section-title .badge{background:var(--blue);color:#fff;font-size:9px;padding:2px 6px;border-radius:2px;font-weight:700;letter-spacing:.5px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:18px 20px;margin-bottom:20px}
+
+/* KPI strip */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+@media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:#fff;border:1px solid var(--line);border-top:3px solid var(--blue);border-radius:4px;padding:16px 18px}
+.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.kpi .v{font-size:26px;font-weight:700;color:var(--navy);margin-top:6px}
+.kpi .s{font-size:11px;color:var(--muted);margin-top:2px}
+.kpi.accent-green{border-top-color:var(--green)}
+.kpi.accent-amber{border-top-color:var(--amber)}
+.kpi.accent-red{border-top-color:var(--red)}
+
+.chartbox{position:relative;height:230px}
+.chartbox.sm{height:200px}
+
+/* Trading style list */
+.deflist .row{display:flex;justify-content:space-between;padding:9px 2px;border-bottom:1px solid var(--line);font-size:12.5px}
+.deflist .row span:first-child{color:var(--muted)}
+.deflist .row span:last-child{font-weight:700;color:var(--navy)}
+
+/* Table */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;padding:8px 8px;border-bottom:2px solid var(--line)}
+td{padding:9px 8px;border-bottom:1px solid var(--line)}
+tbody tr:hover{background:var(--panel)}
+.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.pill{display:inline-block;padding:2px 9px;border-radius:11px;font-size:10.5px;font-weight:700}
+.p-active{background:#e2f3ea;color:var(--green)}
+.p-hold{background:#fbf0d9;color:#a9781a}
+.p-lost{background:#f8e3e1;color:var(--red)}
+.p-new{background:#e8eef7;color:var(--blue)}
+
+/* Summary panel */
+.summary p{font-size:12.5px;color:#44505f;margin-bottom:10px}
+.summary .kv{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.summary .kv b{color:var(--navy)}
+
+.two-mini{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:560px){.two-mini{grid-template-columns:1fr}}
+
+.rep-band{background:var(--navy);color:#fff;border-radius:4px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+.rep-band .n{font-size:15px;font-weight:700}
+.rep-band .sub{font-size:11px;opacity:.8}
+
+.legend-inline{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:11.5px;color:var(--muted)}
+.legend-inline i{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle}
+
+.footer{background:var(--navy);color:#cdd8e8;text-align:center;padding:14px;font-size:11px;margin-top:10px}
+.foot-info{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;padding:26px;border-top:1px solid var(--line);text-align:center}
+.foot-info .h{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.foot-info .d{font-size:13px;color:var(--navy);font-weight:600}
+.note{font-size:11px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Top nav -->
+  <div class="topbar">
+    <div class="brand"><span class="logo">CT</span> ChinaTrucks</div>
+    <nav><span>ภาพรวม</span><span>ทีมขาย</span><span>ดีล</span><span>ผลิตภัณฑ์</span><span>คู่แข่ง</span><span>รายงาน</span></nav>
+    <div class="actions"><button class="btn-ghost">ส่งออก</button><button class="btn-solid">รีเฟรช</button></div>
+  </div>
+
+  <!-- Ticker -->
+  <div class="subbar">
+    <div class="big">฿46.68M</div>
+    <div class="chg">▲ มูลค่า Pipeline ที่ระบุ</div>
+    <div class="title">China Truck Sales Report <span class="tag">| Dongfeng EV</span></div>
+    <div class="meta">อัปเดตล่าสุด 6 ส.ค. 2026 · ทีมขาย 3 คน · ลูกค้า 22 ราย</div>
+  </div>
+
+  <div class="searchbar"><input placeholder="ค้นหาลูกค้า, รุ่นรถ, กลุ่มอุตสาหกรรม..."></div>
+
+  <div class="pad">
+
+    <!-- KPI strip -->
+    <div class="kpis">
+      <div class="kpi"><div class="l">ลูกค้าทั้งหมด</div><div class="v">22</div><div class="s">Ken 10 · Top 10 · Kan 2</div></div>
+      <div class="kpi accent-green"><div class="l">มูลค่า Pipeline (ระบุแล้ว)</div><div class="v">฿46.68M</div><div class="s">จาก 3 ดีลที่ประเมินมูลค่า</div></div>
+      <div class="kpi accent-amber"><div class="l">ดีลที่ยัง Active</div><div class="v">2</div><div class="s">ไพโรจน์ฯ · Siam Power</div></div>
+      <div class="kpi accent-red"><div class="l">Close Lost</div><div class="v">3</div><div class="s">อีเกิ้ล · Yakult · Ajinomoto</div></div>
+    </div>
+
+    <div class="grid">
+      <!-- LEFT -->
+      <div>
+        <!-- Pipeline by salesperson -->
+        <div class="card">
+          <div class="section-title">จำนวนลูกค้าตามทีมขาย <span class="badge">TEAM</span></div>
+          <div class="chartbox sm"><canvas id="repChart"></canvas></div>
+        </div>
+
+        <!-- Deal status + segment -->
+        <div class="card">
+          <div class="section-title">สถานะดีล &amp; กลุ่มอุตสาหกรรม</div>
+          <div class="two-mini">
+            <div>
+              <div class="chartbox sm"><canvas id="statusChart"></canvas></div>
+              <div class="legend-inline">
+                <span><i style="background:#4a72b0"></i>รอ/ใหม่ 13</span>
+                <span><i style="background:#d99a2b"></i>On Hold 4</span>
+                <span><i style="background:#2e9e6b"></i>Active 2</span>
+                <span><i style="background:#c9483f"></i>Close Lost 3</span>
+              </div>
+            </div>
+            <div class="chartbox sm"><canvas id="segChart"></canvas></div>
+          </div>
+        </div>
+
+        <!-- Model interest -->
+        <div class="card">
+          <div class="section-title">ความสนใจตามรุ่นรถ (จำนวนลูกค้า) <span class="badge">MODEL</span></div>
+          <div class="chartbox"><canvas id="modelChart"></canvas></div>
+        </div>
+
+        <!-- Deal table -->
+        <div class="card">
+          <div class="section-title">ดีลที่มีมูลค่าประเมิน</div>
+          <table>
+            <thead><tr><th>บริษัท</th><th>รุ่น</th><th class="num">จำนวน (คัน)</th><th class="num">มูลค่า (฿)</th><th>สถานะ</th></tr></thead>
+            <tbody>
+              <tr><td>ไพโรจน์สมพงษ์พาณิชย์</td><td>KL282, KL350</td><td class="num">5</td><td class="num">22,950,000</td><td><span class="pill p-active">Active</span></td></tr>
+              <tr><td>Sabina</td><td>KR210</td><td class="num">5</td><td class="num">16,950,000</td><td><span class="pill p-hold">On Hold</span></td></tr>
+              <tr><td>ที แช็บ</td><td>KR210</td><td class="num">2</td><td class="num">6,780,000</td><td><span class="pill p-hold">On Hold</span></td></tr>
+              <tr><td colspan="3" style="font-weight:700;color:var(--navy)">รวม</td><td class="num" style="color:var(--navy);font-size:14px">46,680,000</td><td></td></tr>
+            </tbody>
+          </table>
+          <div class="note">* อีก 19 รายยังไม่ได้ประเมินมูลค่าดีล — ตัวเลข Pipeline จริงมีโอกาสสูงกว่านี้มาก</div>
+        </div>
+
+        <!-- Full customer list -->
+        <div class="card">
+          <div class="section-title">รายชื่อลูกค้าทั้งหมด</div>
+          <table>
+            <thead><tr><th>ทีม</th><th>บริษัท</th><th>ประเภท</th><th>Stage</th><th>สถานะ</th></tr></thead>
+            <tbody id="custBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div>
+        <!-- Key drivers -->
+        <div class="card">
+          <div class="section-title">ตัวชี้วัดหลัก <span class="badge">KEY</span></div>
+          <div class="deflist">
+            <div class="row"><span>มูลค่า Pipeline ที่ระบุ</span><span>฿46.68M</span></div>
+            <div class="row"><span>ดีลที่ประเมินมูลค่าแล้ว</span><span>3 / 22</span></div>
+            <div class="row"><span>ค่าเฉลี่ยต่อดีล</span><span>฿15.56M</span></div>
+            <div class="row"><span>ดีล Active (มูลค่า)</span><span>฿22.95M</span></div>
+            <div class="row"><span>รุ่นยอดนิยม</span><span>KL350</span></div>
+            <div class="row"><span>คู่แข่งที่พบบ่อย</span><span>NEX</span></div>
+          </div>
+        </div>
+
+        <!-- Competitor -->
+        <div class="card">
+          <div class="section-title">คู่แข่งที่ลูกค้ากล่าวถึง</div>
+          <div class="chartbox sm"><canvas id="compChart"></canvas></div>
+        </div>
+
+        <!-- Sales funnel -->
+        <div class="card">
+          <div class="section-title">Sales Funnel</div>
+          <div class="chartbox sm"><canvas id="funnelChart"></canvas></div>
+        </div>
+
+        <!-- Summary / insights -->
+        <div class="card summary">
+          <div class="section-title">สรุปสำหรับผู้บริหาร <span class="badge">TRIP</span></div>
+          <p>ทีมขาย 3 คนมีลูกค้ารวม 22 ราย โดย <b>Ken</b> เป็นทีมที่ดีลคืบหน้าที่สุด (ประเมินมูลค่าและสถานะครบ) ส่วน <b>Top</b> มีลูกค้าใหม่ 10 รายที่เพิ่งเข้า pipeline และ <b>Kan</b> เพิ่งเริ่มเก็บ 2 ราย</p>
+          <div class="kv"><span>ดีล Active</span><b>2 ราย</b></div>
+          <div class="kv"><span>On Hold</span><b>4 ราย</b></div>
+          <div class="kv"><span>Close Lost</span><b>3 ราย</b></div>
+          <div class="kv"><span>ลูกค้าใหม่/รอคัดกรอง</span><b>13 ราย</b></div>
+        </div>
+
+        <!-- Obstacles -->
+        <div class="card">
+          <div class="section-title">อุปสรรคหลักของดีล</div>
+          <div class="chartbox sm"><canvas id="obsChart"></canvas></div>
+          <div class="legend-inline">
+            <span><i style="background:#1c3d6e"></i>ราคาสูงกว่างบ/คู่แข่ง 6</span>
+            <span><i style="background:#4a72b0"></i>อะไหล่ &amp; บริการหลังการขาย 3</span>
+            <span><i style="background:#8fb0d9"></i>ระยะทางวิ่งไม่พอ 3</span>
+            <span><i style="background:#cddcef"></i>ROI ยังไม่ผ่าน 2</span>
+          </div>
+          <div class="note">ราคาและบริการหลังการขายเป็นอุปสรรคที่พบบ่อยสุด — ควรเตรียม TCO comparison และแพ็กเกจ service/warranty ให้ชัด</div>
+        </div>
+
+        <!-- team band -->
+        <div class="card" style="padding:0;border:none;background:transparent">
+          <div class="rep-band"><div><div class="n">ทีมนำ: Ken</div><div class="sub">10 ลูกค้า · 3 ดีลมีมูลค่า · ฿46.68M</div></div><div style="font-size:26px;font-weight:700">45%</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot-info">
+    <div><div class="h">ที่มาข้อมูล</div><div class="d">China Truck SaleS Report.xlsx</div></div>
+    <div><div class="h">ทีมขาย</div><div class="d">Ken · Kan · Top</div></div>
+    <div><div class="h">อัปเดต</div><div class="d">6 สิงหาคม 2026</div></div>
+  </div>
+  <div class="footer">Executive Dashboard · China Trucks (Dongfeng EV Thailand) · สร้างจากข้อมูล Sales Pipeline</div>
+</div>
+
+<script>
+Chart.defaults.font.family="'Sarabun','Inter',sans-serif";
+Chart.defaults.font.size=12;
+Chart.defaults.color="#6b7787";
+const NAVY="#1c3d6e",BLUE="#4a72b0",BLUEL="#8fb0d9",BLUEP="#cddcef",GREEN="#2e9e6b",AMBER="#d99a2b",RED="#c9483f";
+
+new Chart(repChart,{type:'bar',data:{labels:['Ken','Top','Kan'],datasets:[{label:'ลูกค้า',data:[10,10,2],backgroundColor:[NAVY,BLUE,BLUEL],borderRadius:3,maxBarThickness:60}]},
+options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'}},x:{grid:{display:false}}}}});
+
+new Chart(statusChart,{type:'doughnut',data:{labels:['รอ/ใหม่','On Hold','Active','Close Lost'],datasets:[{data:[13,4,2,3],backgroundColor:[BLUE,AMBER,GREEN,RED],borderWidth:2,borderColor:'#fff'}]},
+options:{cutout:'62%',plugins:{legend:{display:false}}}});
+
+new Chart(segChart,{type:'bar',data:{labels:['ขนส่ง','โลจิสติก','ก่อสร้าง','พลังงาน','สิ่งแวดล้อม','ค้าปลีก'],datasets:[{data:[7,6,3,3,3,3],backgroundColor:BLUE,borderRadius:3}]},
+options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'}},y:{grid:{display:false}}}}});
+
+new Chart(modelChart,{type:'bar',data:{labels:['KL350','KR210','KL282','VR Mixer','VR Cargo'],datasets:[{label:'จำนวนลูกค้าที่สนใจ',data:[11,6,4,3,1],backgroundColor:[NAVY,BLUE,BLUE,BLUEL,BLUEP],borderRadius:3,maxBarThickness:70}]},
+options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'}},x:{grid:{display:false}}}}});
+
+new Chart(compChart,{type:'bar',data:{labels:['NEX','ISUZU','Hino','Sany'],datasets:[{data:[5,3,3,1],backgroundColor:[NAVY,BLUE,BLUEL,BLUEP],borderRadius:3}]},
+options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'}},y:{grid:{display:false}}}}});
+
+new Chart(funnelChart,{type:'bar',data:{labels:['ลูกค้าใหม่','เก็บ Req.','นำเสนอแล้ว','ต้องการทดลอง','Active'],datasets:[{data:[22,13,6,1,2],backgroundColor:[BLUEP,BLUEL,BLUE,'#3a63a0',NAVY],borderRadius:3}]},
+options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'}},y:{grid:{display:false}}}}});
+
+new Chart(obsChart,{type:'pie',data:{labels:['ราคาสูงกว่างบ/คู่แข่ง','อะไหล่ & บริการหลังการขาย','ระยะทางวิ่งไม่พอ','ROI ยังไม่ผ่าน'],datasets:[{data:[6,3,3,2],backgroundColor:[NAVY,BLUE,BLUEL,BLUEP],borderWidth:2,borderColor:'#fff'}]},
+options:{plugins:{legend:{display:false}}}});
+
+const custs=[
+['Ken','บริษัท อีเกิ้ล โลจิสติกส์','New','ลูกค้าใหม่','lost','Close Lost'],
+['Ken','ไพโรจน์สมพงษ์พาณิชย์','Existing','ต้องการทดลอง','active','Active'],
+['Ken','ที แช็บ','Existing','นำเสนอแล้ว','hold','On Hold'],
+['Ken','Sabina','Existing','นำเสนอแล้ว','hold','On Hold'],
+['Ken','Yakult','New','นำเสนอแล้ว','lost','Close Lost'],
+['Ken','Ajinomoto','Existing','นำเสนอแล้ว','lost','Close Lost'],
+['Ken','Siam Power','Existing','นำเสนอแล้ว','active','Active'],
+['Ken','INSEE','Existing','นำเสนอแล้ว','hold','On Hold'],
+['Ken','SCG JWD','New','เก็บ Requirement','hold','On Hold'],
+['Ken','Spark EV','Existing','—','new','รอข้อมูล'],
+['Kan','นนท์บุรีเทเลอร์','New','—','new','รอข้อมูล'],
+['Kan','ทองธารา','—','—','new','รอข้อมูล'],
+['Top','ทรัพย์รุ่งเรือง ทรานสปอร์ต','New','ลูกค้าใหม่','new','ลูกค้าใหม่'],
+['Top','ศรีวิชัย โลจิสติกส์','New','ลูกค้าใหม่','new','ลูกค้าใหม่'],
+['Top','ที.วาย.แอล. คอร์ปอเรชั่น','New','ลูกค้าใหม่','new','ลูกค้าใหม่'],
+['Top','เนคซ์ ทรานสปอร์ต','New','ลูกค้าใหม่','new','ลูกค้าใหม่'],
+['Top','พี-มิกซ์ คอนกรีต','New','ลูกค้าใหม่','new','ลูกค้าใหม่'],
+['Top','พีพีเอส คอนกรีต','New','ลูกค้าใหม่','new','ลูกค้าใหม่'],
+['Top','เอ็ม ซี แก๊ส','New','ลูกค้าใหม่','new','ลูกค้าใหม่'],
+['Top','ปรมี ลอจิสติกส์','New','ลูกค้าใหม่','new','ลูกค้าใหม่'],
+['Top','หาญเจริญคอนกรีต','New','ลูกค้าใหม่','new','ลูกค้าใหม่'],
+['Top','พ.พัชรพิพัฒน์','—','—','new','รอข้อมูล']];
+const cls={active:'p-active',hold:'p-hold',lost:'p-lost',new:'p-new'};
+document.getElementById('custBody').innerHTML=custs.map(c=>
+`<tr><td><b>${c[0]}</b></td><td>${c[1]}</td><td>${c[2]}</td><td>${c[3]}</td><td><span class="pill ${cls[c[4]]}">${c[5]}</span></td></tr>`).join('');
+</script>
+</body>
+</html>
