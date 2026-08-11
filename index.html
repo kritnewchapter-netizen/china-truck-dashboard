@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>China Truck Sales Report — Executive Dashboard (Live)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -205,12 +204,25 @@ function splitMulti(v){ return String(v||"").split(/[,/]/).map(s=>s.trim()).filt
 function bump(map,k){ if(!k)return; map[k]=(map[k]||0)+1; }
 function topEntries(map,n){ return Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,n); }
 
+// Tolerant CSV parser (handles quoted commas, embedded newlines, and stray
+// trailing empty columns that break strict parsers like PapaParse)
+function csvRows(t){const rows=[];let f=[],cur='',q=false;for(let i=0;i<t.length;i++){const c=t[i];
+  if(q){ if(c=='"'){ if(t[i+1]=='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+  else { if(c=='"')q=true; else if(c==','){f.push(cur);cur='';} else if(c=='\n'){f.push(cur);rows.push(f);f=[];cur='';} else if(c=='\r'){} else cur+=c; }}
+  if(cur!==''||f.length){f.push(cur);rows.push(f);} return rows;}
+function csvToObjects(text){
+  const rows=csvRows(text.trim()); if(!rows.length)return [];
+  const head=rows[0];
+  return rows.slice(1)
+    .filter(r=>r.some(v=>(v||'').trim()!==''))
+    .map(r=>{const o={};head.forEach((h,i)=>{o[h]=r[i]!==undefined?r[i]:'';});return o;});
+}
+
 async function fetchTab(t){
   const res = await fetch(csvUrl(t.gid));
   if(!res.ok) throw new Error("HTTP "+res.status+" ("+t.rep+")");
   const text = await res.text();
-  const parsed = Papa.parse(text.trim(), {header:true, skipEmptyLines:true});
-  return parsed.data.map(r=>({...r, _rep:t.rep}));
+  return csvToObjects(text).map(r=>({...r, _rep:t.rep}));
 }
 
 function makeChart(id,cfg){ if(charts[id])charts[id].destroy(); charts[id]=new Chart($(id),cfg); }
